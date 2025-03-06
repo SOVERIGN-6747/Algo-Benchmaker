@@ -1,6 +1,6 @@
 # Pathfinding Algorithm Visualizer and Benchmark
 
-A C++ SFML application for visualizing and benchmarking various pathfinding algorithms. This project was created for the CICR Robo-Soccer team to optimize robot navigation logic.
+A C++ SFML application for visualizing and benchmarking various pathfinding algorithms. This project was created for the CICR team to optimize robot navigation logic.
 
 ## Features
 
