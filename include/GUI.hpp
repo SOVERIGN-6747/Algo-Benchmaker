@@ -6,6 +6,8 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <bits/stdc++.h>
+
 
 class GUI {
 public:
@@ -49,6 +51,9 @@ private:
     bool isRunning_;
     bool isDragging_;
     Maze::CellType currentDrawMode_;
+    bool isVisualizing_;
+    std::vector<Maze::Point> currentPath_;
+    Maze::Point currentNode_;
     
     // Initialize methods
     void initWindow(int width, int height);

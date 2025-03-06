@@ -4,6 +4,7 @@
 #include <queue>
 #include <unordered_map>
 #include <cmath>
+#include <bits/stdc++.h>
 
 class JPS : public Pathfinder {
 public:
@@ -20,7 +21,8 @@ public:
         }
     };
 
-    PathfindingResult findPath(const Maze& maze) override {
+    PathfindingResult findPath(const Maze& maze, bool visualize = false, 
+                              VisualizationCallback callback = nullptr) override {
         auto start_time = std::chrono::high_resolution_clock::now();
         PathfindingResult result;
         result.nodesExplored = 0;
@@ -43,6 +45,15 @@ public:
             Node current = openSet.top();
             openSet.pop();
             result.nodesExplored++;
+
+            // Visualize current step
+            if (visualize) {
+                std::vector<Maze::Point> currentPath;
+                if (!cameFrom.empty()) {
+                    currentPath = reconstructPath(cameFrom, start, current.point);
+                }
+                visualizeStep(current.point, currentPath, visualize, callback);
+            }
 
             // Found the goal
             if (current.point == goal) {

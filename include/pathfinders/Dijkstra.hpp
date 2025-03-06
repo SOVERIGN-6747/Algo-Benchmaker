@@ -3,6 +3,7 @@
 #include "Pathfinder.hpp"
 #include <queue>
 #include <unordered_map>
+#include <bits/stdc++.h>
 
 class Dijkstra : public Pathfinder {
 public:
@@ -18,7 +19,8 @@ public:
         }
     };
 
-    PathfindingResult findPath(const Maze& maze) override {
+    PathfindingResult findPath(const Maze& maze, bool visualize = false, 
+                              VisualizationCallback callback = nullptr) override {
         auto start_time = std::chrono::high_resolution_clock::now();
         PathfindingResult result;
         result.nodesExplored = 0;
@@ -41,6 +43,15 @@ public:
             Node current = pq.top();
             pq.pop();
             result.nodesExplored++;
+
+            // Visualize current step
+            if (visualize) {
+                std::vector<Maze::Point> currentPath;
+                if (!cameFrom.empty()) {
+                    currentPath = reconstructPath(cameFrom, start, current.point);
+                }
+                visualizeStep(current.point, currentPath, visualize, callback);
+            }
 
             // Found the goal
             if (current.point == goal) {

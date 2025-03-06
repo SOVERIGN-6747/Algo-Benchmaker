@@ -5,9 +5,15 @@
 #include <chrono>
 #include <string>
 #include <memory>
+#include <bits/stdc++.h>
+#include <functional>
+#include <thread>
 
 class Pathfinder {
 public:
+    // Add callback type for visualization
+    using VisualizationCallback = std::function<void(const Maze::Point&, const std::vector<Maze::Point>&)>;
+    
     struct PathfindingResult {
         std::vector<Maze::Point> path;
         double executionTime;  // in milliseconds
@@ -19,14 +25,18 @@ public:
     virtual ~Pathfinder() = default;
 
     // Main solving method that all algorithms must implement
-    virtual PathfindingResult findPath(const Maze& maze) = 0;
+    virtual PathfindingResult findPath(const Maze& maze, bool visualize = false, VisualizationCallback callback = nullptr) = 0;
 
     // Get algorithm name for display and benchmarking
     virtual std::string getName() const = 0;
 
     // Optional method to visualize the search process
-    virtual void visualizeStep(Maze& maze, const Maze::Point& current) {
-        maze.setCellType(current.x, current.y, Maze::CellType::VISITED);
+    virtual void visualizeStep(const Maze::Point& current, const std::vector<Maze::Point>& path, 
+                              bool visualize, VisualizationCallback callback) {
+        if (visualize && callback) {
+            callback(current, path);
+            std::this_thread::sleep_for(std::chrono::milliseconds(50)); // Delay for visualization
+        }
     }
 
 protected:

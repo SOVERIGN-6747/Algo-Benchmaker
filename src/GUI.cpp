@@ -9,6 +9,9 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <iostream>
+#include <bits/stdc++.h>
+
 
 GUI::GUI(int windowWidth, int windowHeight)
     : cellSize_(20.f)
@@ -16,6 +19,9 @@ GUI::GUI(int windowWidth, int windowHeight)
     , isRunning_(false)
     , isDragging_(false)
     , currentDrawMode_(Maze::CellType::WALL)
+    , isVisualizing_(false)
+    , currentPath_()
+    , currentNode_()
 {
     initWindow(windowWidth, windowHeight);
     initUI();
@@ -39,8 +45,26 @@ void GUI::initWindow(int width, int height) {
 }
 
 void GUI::initUI() {
-    if (!font_.loadFromFile("resources/arial.ttf")) {
-        throw std::runtime_error("Could not load font");
+    // Try multiple font paths
+    std::vector<std::string> fontPaths = {
+        "resources/arial.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",  // Common on Linux
+        "/usr/share/fonts/TTF/DejaVuSans.ttf",                            // Common on Linux
+        "/System/Library/Fonts/Helvetica.ttc",                            // MacOS
+        "C:\\Windows\\Fonts\\arial.ttf"                                   // Windows
+    };
+
+    bool fontLoaded = false;
+    for (const auto& path : fontPaths) {
+        if (font_.loadFromFile(path)) {
+            fontLoaded = true;
+            break;
+        }
+    }
+
+    if (!fontLoaded) {
+        std::cerr << "Warning: Could not load any system fonts. Text rendering may be disabled.\n";
+        // Continue without text - the program can still work without fonts
     }
 
     // Initialize algorithm name text
@@ -285,6 +309,18 @@ void GUI::draw() {
     window_.setView(uiView_);
     drawUI();
 
+    // Draw visualization elements
+    if (isVisualizing_) {
+        // Highlight current node being explored
+        sf::CircleShape currentNodeMarker(cellSize_ / 3);
+        currentNodeMarker.setFillColor(sf::Color::Yellow);
+        currentNodeMarker.setPosition(
+            currentNode_.x * cellSize_ + cellSize_/3,
+            currentNode_.y * cellSize_ + cellSize_/3
+        );
+        window_.draw(currentNodeMarker);
+    }
+
     window_.display();
 }
 
@@ -332,7 +368,8 @@ void GUI::drawDropdown() {
 
 void GUI::updateMetrics() {
     std::ostringstream oss;
-    oss << std::fixed << std::setprecision(2)
+    oss << algorithms_[currentAlgorithm_]->getName() << "\n"
+        << std::fixed << std::setprecision(2)
         << "Time: " << lastResult_.executionTime << "ms | "
         << "Nodes: " << lastResult_.nodesExplored << " | "
         << "Path: " << lastResult_.pathLength << " | "
@@ -349,8 +386,42 @@ sf::Vector2i GUI::windowToGrid(const sf::Vector2i& windowPos) const {
 
 void GUI::runAlgorithm() {
     if (!algorithms_.empty()) {
-        lastResult_ = algorithms_[currentAlgorithm_]->findPath(maze_);
+        // Reset visualization state
+        isVisualizing_ = true;
+        currentPath_.clear();
+        
+        // Clear previous visualization
+        for (int y = 0; y < maze_.getHeight(); ++y) {
+            for (int x = 0; x < maze_.getWidth(); ++x) {
+                if (maze_.getCellType(x, y) == Maze::CellType::VISITED ||
+                    maze_.getCellType(x, y) == Maze::CellType::PATH_FOUND) {
+                    maze_.setCellType(x, y, Maze::CellType::PATH);
+                }
+            }
+        }
+
+        // Create visualization callback
+        auto visualCallback = [this](const Maze::Point& current, const std::vector<Maze::Point>& path) {
+            currentNode_ = current;
+            currentPath_ = path;
+            maze_.setCellType(current.x, current.y, Maze::CellType::VISITED);
+            
+            // Update path visualization
+            for (const auto& p : path) {
+                maze_.setCellType(p.x, p.y, Maze::CellType::PATH_FOUND);
+            }
+        };
+
+        // Run algorithm with visualization
+        lastResult_ = algorithms_[currentAlgorithm_]->findPath(maze_, true, visualCallback);
         updateMetrics();
+        
+        // Final path visualization
+        for (const auto& p : lastResult_.path) {
+            maze_.setCellType(p.x, p.y, Maze::CellType::PATH_FOUND);
+        }
+        
+        isVisualizing_ = false;
     }
 }
 
@@ -369,44 +440,35 @@ void GUI::clearMaze() {
 }
 
 void GUI::loadMaze() {
-    // Create a file dialog (in a real implementation, you would use a proper file dialog library)
     std::string filename;
     std::cout << "Enter maze file path (ASCII .txt or PNG): ";
     std::getline(std::cin, filename);
 
-    if (filename.empty()) return;
-
-    bool success = false;
-    if (filename.ends_with(".txt")) {
-        success = maze_.loadFromASCII(filename);
-    } else if (filename.ends_with(".png")) {
-        success = maze_.loadFromPNG(filename);
+    if (filename.empty()) {
+        return;
     }
 
-    if (success) {
-        metrics_.setString("Maze loaded successfully from " + filename);
-    } else {
-        metrics_.setString("Failed to load maze from " + filename);
+    if (filename.length() >= 4 && filename.substr(filename.length() - 4) == ".txt") {
+        maze_.loadFromASCII(filename);
+    } else if (filename.length() >= 4 && filename.substr(filename.length() - 4) == ".png") {
+        maze_.loadFromPNG(filename);
     }
 }
 
 void GUI::saveMaze() {
-    // Create a file dialog (in a real implementation, you would use a proper file dialog library)
     std::string filename;
     std::cout << "Enter PNG file path to save maze: ";
     std::getline(std::cin, filename);
 
-    if (filename.empty()) return;
+    if (filename.empty()) {
+        return;
+    }
 
-    if (!filename.ends_with(".png")) {
+    if (!(filename.length() >= 4 && filename.substr(filename.length() - 4) == ".png")) {
         filename += ".png";
     }
 
-    if (maze_.saveToPNG(filename)) {
-        metrics_.setString("Maze saved successfully to " + filename);
-    } else {
-        metrics_.setString("Failed to save maze to " + filename);
-    }
+    maze_.saveToPNG(filename);
 }
 
 void GUI::runBenchmark() {
